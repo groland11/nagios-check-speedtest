@@ -104,7 +104,7 @@ def main():
     try:
         cmd_df = ['speedtest-cli', '--csv']
         logger.debug(f'Running OS command line: {cmd_df} ...')
-        process = run(cmd_df, check=True, timeout=30, capture_output=True)
+        process = run(cmd_df, check=True, timeout=60, capture_output=True)
         stats_line = process.stdout.decode('utf-8').strip()
         logger.debug(stats_line)
     except (TimeoutExpired, ValueError) as e:
