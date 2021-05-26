@@ -1,3 +1,7 @@
+![last commit](https://img.shields.io/github/last-commit/groland11/nagios-check-speedtest.svg)
+![languages](https://img.shields.io/github/languages/top/groland11/nagios-check-speedtest.svg)
+![license](https://img.shields.io/github/license/groland11/nagios-check-speedtest.svg)
+
 # nagios-check-speedtest
 Nagios check to test internet connection speed.
 
