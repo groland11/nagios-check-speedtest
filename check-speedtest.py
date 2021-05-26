@@ -110,11 +110,11 @@ def main():
     except (TimeoutExpired, ValueError) as e:
         logger.warning(f'{e}')
         sys.exit(UNKNOWN)
+    except FileNotFoundError:
+        logger.critical(f'CRITICAL: Missing program "speedtest-cli" ({e})')
+        sys.exit(CRITICAL)
     except Exception as e:
-        if e.errno == 2:
-            logger.critical(f'CRITICAL: Missing program "speedtest-cli" ({e})')
-        else:
-            logger.critical(f'CRITICAL: {e}')
+        logger.critical(f'CRITICAL: {e}')
         sys.exit(CRITICAL)
 
     download = float(stats_line.split(',')[6]) / 1000000
