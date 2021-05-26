@@ -133,10 +133,10 @@ def main():
         result = WARNING
 
     msg = f'{return_codes[result]}: Download={download:.2f} Upload={upload:.2f}'
-    perfdata = f'Download={download:.2f};' \
+    perfdata = f'Download={download:.0f};' \
                f'{str(warning_download) if warning_download > 0 else ""};' \
                f'{str(critical_download) if critical_download > 0 else ""};; ' \
-               f'Upload={upload:.2f};' \
+               f'Upload={upload:.0f};' \
                f'{str(warning_upload) if warning_upload > 0 else ""};' \
                f'{str(critical_upload) if critical_upload > 0 else ""};;'
     logger.debug(f'{msg}|{perfdata}')
