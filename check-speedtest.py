@@ -1,9 +1,28 @@
 #!/usr/bin/env python3
+""" Nagios check to test internet connection speed.
 
+Requirements
+    Python >= 3.8
+    Package "speedtest-cli" (can be installed by package manager or pip)
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+You should have received a copy of the GNU General Public License along with
+this program. If not, see <http://www.gnu.org/licenses/>.
+"""
 import argparse
 import logging
 import sys
 from subprocess import run, TimeoutExpired
+
+__license__ = "GPLv3"
+__version__ = "0.9"
 
 # Nagios return codes: https://nagios-plugins.org/doc/guidelines.html#AEN78
 OK = 0
@@ -13,13 +32,8 @@ UNKNOWN = 3
 return_codes = ['OK', 'WARNING', 'CRITICAL', 'UNKNOWN']
 
 
-class LogFilter(logging.Filter):
-    def filter(self, record):
-        return record.levelno in (logging.DEBUG, logging.INFO, logging.WARNING)
-
-
 def parseargs() -> argparse.Namespace:
-    """ Defining command-line arguments """
+    """ Parse command-line arguments """
     parser = argparse.ArgumentParser(description='Nagios check for internet connection speed')
     parser.add_argument(
         '-w', '--warning', nargs='?', required=False,
@@ -38,17 +52,24 @@ def parseargs() -> argparse.Namespace:
         help='Lower upload speed critical limit (Mbit/s), default: 0 (no critical',
         dest='minupload_critical', type=int, default=0)
     parser.add_argument(
-        '-v', '--verbose', required=False,
-        help='enable verbose output', dest='verbose',
-        action='store_true')
-    parser.add_argument(
         '--log-file', nargs=1, required=False,
         help='file to log to, default: <stdout>',
         dest='logfile', type=str)
+    parser.add_argument(
+        '-v', '--verbose', required=False,
+        help='enable verbose output', dest='verbose',
+        action='store_true')
+    parser.add_argument('-V', '--version', action='version', version='%(prog)s ' + __version__)
 
     args = parser.parse_args()
 
     return args
+
+
+class LogFilterWarning(logging.Filter):
+    """Logging filter >= WARNING"""
+    def filter(self, record):
+        return record.levelno in (logging.DEBUG, logging.INFO, logging.WARNING)
 
 
 def get_logger(verbose: bool = False) -> logging.Logger:
@@ -59,12 +80,14 @@ def get_logger(verbose: bool = False) -> logging.Logger:
     else:
         logger.setLevel(logging.INFO)
 
+    # Log everything >= WARNING to stdout
     h1 = logging.StreamHandler(sys.stdout)
     h1.setLevel(logging.DEBUG)
     h1.setFormatter(logging.Formatter(fmt='%(asctime)s [%(process)d] %(levelname)s: %(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S'))
-    h1.addFilter(LogFilter())
+    h1.addFilter(LogFilterWarning())
 
+    # Log errors to stderr
     h2 = logging.StreamHandler(sys.stderr)
     h2.setFormatter(logging.Formatter(fmt='%(asctime)s [%(process)d] %(levelname)s: %(message)s',
                                       datefmt='%Y-%m-%d %H:%M:%S'))
@@ -77,6 +100,7 @@ def get_logger(verbose: bool = False) -> logging.Logger:
 
 
 def get_thresholds(args: argparse.Namespace) -> tuple:
+    """Retrieve thresholds for check from command line parameters"""
     wdown = max(int(args.mindownload_warning), 0)
     cdown = max(int(args.mindownload_critical), 0)
     if wdown < cdown:
@@ -98,7 +122,7 @@ def main():
     logger = get_logger(args.verbose)
 
     # Checking command line arguments
-    warning_download, critical_download, warning_upload, critical_upload =  get_thresholds(args)
+    warning_download, critical_download, warning_upload, critical_upload = get_thresholds(args)
 
     # Run speedtest-cli command
     try:
