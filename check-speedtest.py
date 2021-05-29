@@ -35,7 +35,7 @@ def parseargs() -> argparse.Namespace:
         dest='minupload_warning', type=int, default=0)
     parser.add_argument(
         '-C', '--Critical', nargs='?', required=False,
-        help='Lower Upload speed critical limit (Mbit/s), default: 0 (no critical',
+        help='Lower upload speed critical limit (Mbit/s), default: 0 (no critical',
         dest='minupload_critical', type=int, default=0)
     parser.add_argument(
         '-v', '--verbose', required=False,
@@ -110,7 +110,7 @@ def main():
     except (TimeoutExpired, ValueError) as e:
         logger.warning(f'{e}')
         sys.exit(UNKNOWN)
-    except FileNotFoundError:
+    except FileNotFoundError as e:
         logger.critical(f'CRITICAL: Missing program "speedtest-cli" ({e})')
         sys.exit(CRITICAL)
     except Exception as e:
