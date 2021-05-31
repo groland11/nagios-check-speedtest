@@ -22,7 +22,7 @@ import sys
 from subprocess import run, TimeoutExpired
 
 __license__ = "GPLv3"
-__version__ = "0.9"
+__version__ = "0.9.1"
 
 # Nagios return codes: https://nagios-plugins.org/doc/guidelines.html#AEN78
 OK = 0
@@ -30,6 +30,9 @@ WARNING = 1
 CRITICAL = 2
 UNKNOWN = 3
 return_codes = ['OK', 'WARNING', 'CRITICAL', 'UNKNOWN']
+
+# Global logging object
+logger = logging.getLogger(__name__)
 
 
 def parseargs() -> argparse.Namespace:
@@ -62,8 +65,74 @@ def parseargs() -> argparse.Namespace:
     parser.add_argument('-V', '--version', action='version', version='%(prog)s ' + __version__)
 
     args = parser.parse_args()
-
     return args
+
+
+class SpeedTest:
+    def __init__(self, download_warning=None, download_critical=None,
+                 upload_warning=None, upload_critical=None):
+        self.download: float = 0.0
+        self.upload: float = 0.0
+        self.download_warning: int = download_warning
+        self.download_critical: int = download_critical
+        self.upload_warning: int = upload_warning
+        self.upload_critical: int = upload_critical
+        self.rc = -1
+
+    def run(self, cmd: list) -> tuple:
+        """Run speedtest and return result"""
+        try:
+            logger.debug(f'Running OS command line: {cmd} ...')
+            process = run(cmd, check=True, timeout=60, capture_output=True)
+            self.rc = process.returncode
+            stats_line = process.stdout.decode('utf-8').strip()
+            logger.debug(stats_line)
+        except (TimeoutExpired, ValueError) as e:
+            logger.warning(f'{e}')
+            sys.exit(UNKNOWN)
+        except FileNotFoundError as e:
+            logger.critical(f'CRITICAL: Missing program "speedtest-cli" ({e})')
+            sys.exit(CRITICAL)
+        except Exception as e:
+            logger.critical(f'CRITICAL: {e}')
+            sys.exit(CRITICAL)
+
+        self.download = float(stats_line.split(',')[6]) / 1000000
+        self.upload = float(stats_line.split(',')[7]) / 1000000
+        logger.debug(f'Download: {self.download:.2f} Mbit/s; Upload: {self.upload:.2f} Mbit/s')
+        return self.download, self.upload
+
+    def create_output(self) -> tuple:
+        """Verify result and return output in Nagios format"""
+        if self.rc >= 0:
+            result = OK
+        else:
+            return UNKNOWN, f'{return_codes[UNKNOWN]}: Download=? Upload=?'
+
+        if self.download_critical is not None and \
+                self.download <= self.download_critical and self.download_critical > 0:
+            result = CRITICAL
+        if self.download_warning is not None and self.download <= self.download_warning and self.download_warning > 0:
+            result = WARNING
+
+        if self.upload_critical is not None and \
+                self.upload <= self.upload_critical and self.upload_critical > 0:
+            result = CRITICAL
+        if self.upload_warning is not None and \
+                self.upload <= self.upload_warning and self.upload_warning > 0 and result != CRITICAL:
+            result = WARNING
+
+        msg = f'{return_codes[result]}: Download={self.download:.2f} Upload={self.upload:.2f}'
+        perfdata = f'Download={self.download:.0f};' \
+                   f'{str(self.download_warning) if self.download_warning > 0 else ""};' \
+                   f'{str(self.download_critical) if self.download_critical > 0 else ""};; ' \
+                   f'Upload={self.upload:.0f};' \
+                   f'{str(self.upload_warning) if self.upload_warning > 0 else ""};' \
+                   f'{str(self.upload_critical) if self.upload_critical > 0 else ""};;'
+
+        message = f'{msg}|{perfdata}'
+        logger.debug(message)
+        return result, message
 
 
 class LogFilterWarning(logging.Filter):
@@ -74,7 +143,6 @@ class LogFilterWarning(logging.Filter):
 
 def get_logger(verbose: bool = False) -> logging.Logger:
     """Retrieve logging object"""
-    logger = logging.getLogger()
     if verbose:
         logger.setLevel(logging.DEBUG)
     else:
@@ -119,52 +187,16 @@ def main():
     result = OK
 
     args = parseargs()
-    logger = get_logger(args.verbose)
+    get_logger(args.verbose)
 
-    # Checking command line arguments
-    warning_download, critical_download, warning_upload, critical_upload = get_thresholds(args)
+    # Check command line arguments
+    download_warning, download_critical, upload_warning, upload_critical = get_thresholds(args)
 
     # Run speedtest-cli command
-    try:
-        cmd_df = ['speedtest-cli', '--csv']
-        logger.debug(f'Running OS command line: {cmd_df} ...')
-        process = run(cmd_df, check=True, timeout=60, capture_output=True)
-        stats_line = process.stdout.decode('utf-8').strip()
-        logger.debug(stats_line)
-    except (TimeoutExpired, ValueError) as e:
-        logger.warning(f'{e}')
-        sys.exit(UNKNOWN)
-    except FileNotFoundError as e:
-        logger.critical(f'CRITICAL: Missing program "speedtest-cli" ({e})')
-        sys.exit(CRITICAL)
-    except Exception as e:
-        logger.critical(f'CRITICAL: {e}')
-        sys.exit(CRITICAL)
-
-    download = float(stats_line.split(',')[6]) / 1000000
-    upload = float(stats_line.split(',')[7]) / 1000000
-    logger.debug(f'Download: {download:.2f} Mbit/s; Upload: {upload:.2f} Mbit/s')
-
-    # Verify result and print output in Nagios format
-    if download <= critical_download and critical_download > 0:
-        result = CRITICAL
-    if download <= warning_download and warning_download > 0:
-        result = WARNING
-
-    if upload <= critical_upload and critical_upload > 0:
-        result = CRITICAL
-    if upload <= warning_upload and warning_upload > 0 and result != CRITICAL:
-        result = WARNING
-
-    msg = f'{return_codes[result]}: Download={download:.2f} Upload={upload:.2f}'
-    perfdata = f'Download={download:.0f};' \
-               f'{str(warning_download) if warning_download > 0 else ""};' \
-               f'{str(critical_download) if critical_download > 0 else ""};; ' \
-               f'Upload={upload:.0f};' \
-               f'{str(warning_upload) if warning_upload > 0 else ""};' \
-               f'{str(critical_upload) if critical_upload > 0 else ""};;'
-    logger.debug(f'{msg}|{perfdata}')
-    print(f'{msg}|{perfdata}')
+    speedtest = SpeedTest(download_warning, download_critical, upload_warning, upload_critical)
+    speedtest.run(['speedtest-cli', '--csv'])
+    result, message = speedtest.create_output()
+    print(message)
 
     return result
 
