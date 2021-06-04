@@ -32,5 +32,5 @@ Lower Upload speed critical limit (Mbit/s), default: 0 (no critical
 ## Examples
 ```
 $ check-speedtest.py -w 5 -c 4 -W 3 -C 2
-WARNING: Download=9.03 Upload=2.46|Download=9.03;5;4;; Upload=2.46;3;2;;
+WARNING: Download=9.03 Upload=2.46|Download=9;5;4;; Upload=2;3;2;;
 ```

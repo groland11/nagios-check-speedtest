@@ -52,7 +52,7 @@ def parseargs() -> argparse.Namespace:
         dest='minupload_warning', type=int, default=0)
     parser.add_argument(
         '-C', '--Critical', nargs='?', required=False,
-        help='Lower upload speed critical limit (Mbit/s), default: 0 (no critical',
+        help='Lower upload speed critical limit (Mbit/s), default: 0 (no critical)',
         dest='minupload_critical', type=int, default=0)
     parser.add_argument(
         '--log-file', nargs=1, required=False,
