@@ -25,7 +25,7 @@ Lower download speed critical limit (Mbit/s), default: 0 (no critical)
 -W [MINUPLOAD_WARNING], --Warning [MINUPLOAD_WARNING]
 Lower upload speed warning limit (Mbit/s), default: 0 (no warning)
 -C [MINUPLOAD_CRITICAL], --Critical [MINUPLOAD_CRITICAL]
-Lower Upload speed critical limit (Mbit/s), default: 0 (no critical
+Lower Upload speed critical limit (Mbit/s), default: 0 (no critical)
 -v, --verbose         enable verbose output
 --log-file LOGFILE    file to log to, default: <stdout>
 ```
